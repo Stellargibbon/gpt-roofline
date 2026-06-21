@@ -9,5 +9,13 @@ __pycache__/
 # HuggingFace dataset cache (if it lands locally)
 .cache/
 
+# in-progress phase bricks — stay local until a brick is FULLY finished.
+# Workflow per brick:
+#   1. write the brick (local, ignored — invisible to git, can't be added by accident)
+#   2. when fully done:   git add -f b<N>.py    (force overrides ignore)
+#   3. commit + push that one finished brick.
+# Tracked files beat the ignore rule, so once pushed, later edits land normally.
+b[0-9]*.py
+
 # personal answer keys / learning aids — kept local, not for the public repo
 *_reference.py
