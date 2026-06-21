@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.ipynb_checkpoints/
+
+# tokenized corpus + raw data — regenerable via prepare.py, far too big to track
+data/*.bin
+data/*.txt
+*.bin
+
+# trained weights — regenerable; kept out of the repo to stay lean
+*.pt
+
+# training safety marker — never commit an armed state
+ARMED
