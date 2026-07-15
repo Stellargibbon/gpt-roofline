@@ -72,7 +72,6 @@ def get_batch(split):
 def measure_loader_throughput(split, n_batches):
     for _ in range(3):
         get_batch(split)
-    x, y = get_batch(split)
     t0 = time.time()
     for _ in range(n_batches):
         get_batch(split)

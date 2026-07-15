@@ -19,3 +19,6 @@ b[0-9]*.py
 
 # personal answer keys / learning aids — kept local, not for the public repo
 *_reference.py
+# local probes + scratch rig — not for the public repo
+probes/
+scratch.py

@@ -21,18 +21,24 @@ Both ship from one set of runs.
 ## Status
 
 Direction locked via a 5-stance council panel (see `PROJECT_SPEC.md` for the full
-plan, the panel's reasoning, and the guardrails). Not started — first move is P0.
+plan, the panel's reasoning, and the guardrails).
+
+**In progress — P2 (the model).** P0 (data prep) and P1 (loader) done:
+- P0 `b0.py` — tokenized OpenWebText → `train.bin` (17G) / `val.bin` (86M) / `meta.json`.
+- P1 `b1.py` — memmap loader + first measurement: loader-only throughput ~155K tok/s
+  (worst-case floor; the real "is data the bottleneck?" call comes at P3 vs GPU throughput).
+- P2 `b2.py` — GPT model, landed: init loss 10.8833 vs ln(50257) ≈ 10.825 on one
+  real batch (the random-init sanity). Training loop next.
+
+Bricks build-from-blank; each `b<N>.py` lands (force-added + pushed) once it runs
+end-to-end. Heavy runs happen on the Blackwell box, not the dev laptop.
 
 ## Hardware / data
 
 - NVIDIA Blackwell 6000 (96GB, native fp8) — single GPU.
 - OpenWebText (~9B tokens), GPT-2 BPE (token-level).
 
-## The first move (P0)
+## Phase plan
 
-`prepare.py` — tokenize OpenWebText once (`tiktoken` GPT-2 BPE), carve the val
-split *before* tokenizing, write `train.bin` / `val.bin` as uint16 memmaps. Then
-`dataset.py::get_batch(split)` over the memmap, and measure loader-only
-tokens/sec before touching the model.
-
-Full phase plan P0→P8: see `PROJECT_SPEC.md`.
+Full phase plan P0→P8: see `PROJECT_SPEC.md`. Current position: P2 (the model) —
+see Status above.
