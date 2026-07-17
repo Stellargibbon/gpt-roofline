@@ -168,6 +168,9 @@ class GPT(nn.Module):
         self.lm_head = nn.Linear(N_EMBD, VOCAB_SIZE, bias=False)
         self.lm_head.weight = self.wte.weight
         self.apply(self._init_weights)
+        for name, param in self.named_parameters():
+            if name.endswith('proj.weight'):
+                nn.init.normal_(param, mean=0.0, std=0.02/math.sqrt(2*N_LAYER))
         
 
 
@@ -216,4 +219,5 @@ if __name__ == "__main__":
     with torch.no_grad():
         loss, logits = model(x, y)
     print(loss, logits.shape)
+    print(sum(1 for n, _ in model.named_parameters() if n.endswith('proj.weight')))
     
