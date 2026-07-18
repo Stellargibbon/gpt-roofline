@@ -23,12 +23,14 @@ Both ship from one set of runs.
 Direction locked via a 5-stance council panel (see `PROJECT_SPEC.md` for the full
 plan, the panel's reasoning, and the guardrails).
 
-**In progress — P2 (the model).** P0 (data prep) and P1 (loader) done:
+**In progress — P3 (the training loop).** P0 (data prep), P1 (loader), and P2 (the model) done:
 - P0 `b0.py` — tokenized OpenWebText → `train.bin` (17G) / `val.bin` (86M) / `meta.json`.
 - P1 `b1.py` — memmap loader + first measurement: loader-only throughput ~155K tok/s
   (worst-case floor; the real "is data the bottleneck?" call comes at P3 vs GPU throughput).
 - P2 `b2.py` — GPT model, landed: init loss 10.8833 vs ln(50257) ≈ 10.825 on one
-  real batch (the random-init sanity). Training loop next.
+  real batch (the random-init sanity), plus GPT-2 residual √-shrink init.
+- P3 `b3.py` — training loop, in progress: model setup + AdamW optimizer done; eval
+  helper, loop, and loss curve next.
 
 Bricks build-from-blank; each `b<N>.py` lands (force-added + pushed) once it runs
 end-to-end. Heavy runs happen on the Blackwell box, not the dev laptop.
