@@ -5,6 +5,7 @@ __pycache__/
 
 # data artifacts (b0 output — too big for git, regenerate via b0.py)
 *.bin
+meta.json
 
 # HuggingFace dataset cache (if it lands locally)
 .cache/
