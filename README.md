@@ -20,27 +20,55 @@ Both ship from one set of runs.
 
 ## Status
 
-Direction locked via a 5-stance council panel (see `PROJECT_SPEC.md` for the full
-plan, the panel's reasoning, and the guardrails).
+Direction locked via a 5-stance council panel (private planning doc).
 
-**In progress — P3 (the training loop).** P0 (data prep), P1 (loader), and P2 (the model) done:
+**Instrumentation complete — P3 landed.** P0 (data prep), P1 (loader), P2 (model +
+training loop), and P3 (instrumentation) all done. Next: the size sweep (P4).
 - P0 `b0.py` — tokenized OpenWebText → `train.bin` (17G) / `val.bin` (86M) / `meta.json`.
 - P1 `b1.py` — memmap loader + first measurement: loader-only throughput ~155K tok/s
-  (worst-case floor; the real "is data the bottleneck?" call comes at P3 vs GPU throughput).
-- P2 `b2.py` — GPT model, landed: init loss 10.8833 vs ln(50257) ≈ 10.825 on one
+  (worst-case floor; the "is data the bottleneck?" question is answered at P3 below).
+- P2 `b2.py` (model half) — GPT model, landed: init loss 10.8833 vs ln(50257) ≈ 10.825 on one
   real batch (the random-init sanity), plus GPT-2 residual √-shrink init.
-- P3 `b3.py` — training loop, in progress: model setup + AdamW optimizer done; eval
-  helper, loop, and loss curve next.
+- P2 `b3.py` (loop half) — training loop, landed: `estimate_loss()` (val, `no_grad`), AdamW,
+  eval gate. First long run 2026-07-26: 12,500 iters, val loss 10.887 → **4.458**
+  (~205M tokens).
+- P3 `b4.py` — systems instrumentation, landed: CUDA-event timing harness,
+  tokens/sec, MFU, peak VRAM, coarse step-time split, and an N-step measurement
+  loop with warmup discard.
 
-Bricks build-from-blank; each `b<N>.py` lands (force-added + pushed) once it runs
-end-to-end. Heavy runs happen on the Blackwell box, not the dev laptop.
+### First instrumented numbers (2026-07-26)
+
+30M-param GPT, fp32 (`allow_tf32=False`), B×T = 16,384 tokens/step, n=100 steps
+(5 warmup discarded), RTX PRO 6000 Blackwell Workstation Edition:
+
+| metric | value |
+|---|---|
+| throughput | **192,574 tok/s** |
+| MFU | **27.8%** (vs 125 TFLOP/s FP32 dense peak) |
+| peak VRAM | 15.0 GB |
+| step time | 85.12 ms |
+| ├ data-wait | 4.21 ms (4.9%) |
+| ├ fwd+bwd | 79.36 ms (93.2%) |
+| └ optimizer | 1.55 ms (1.8%) |
+
+The step-time split answers P1's open question: **the data path is not the
+bottleneck** (4.9%), and neither is the optimizer (1.8%) — 93% of the step is
+compute, so the ~72% of peak left on the table is memory-bound compute rather
+than starvation. That's the roofline P4 will map and P5 will attack.
+
+Measurement note: single-shot runs reported 0.53 ms data-wait and 31% MFU, both
+wrong. Step 0's `get_batch` hits data still warm in the OS page cache from the
+warmup loop, so it undercounts the loader by ~8×. Only the N-step loop exposes
+it — the numbers above are the honest ones.
 
 ## Hardware / data
 
-- NVIDIA Blackwell 6000 (96GB, native fp8) — single GPU.
+- NVIDIA RTX PRO 6000 Blackwell **Workstation Edition** (96 GB, GB202, 600W;
+  125 TFLOP/s FP32 dense peak — the MFU denominator above; the Max-Q variant is
+  a different card at 110) — single GPU.
 - OpenWebText (~9B tokens), GPT-2 BPE (token-level).
 
 ## Phase plan
 
-Full phase plan P0→P8: see `PROJECT_SPEC.md`. Current position: P2 (the model) —
-see Status above.
+Phases P0→P8 per the private spec. Current position: P3 landed
+(instrumentation); next is P4 (the size sweep) — see Status above.

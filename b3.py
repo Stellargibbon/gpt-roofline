@@ -30,9 +30,9 @@ from b2 import GPT
 # SMOKE_ITERS   -> the entrypoint's smoke-scale loop count (tiny — prove the
 #                  loop runs end-to-end, nothing more)
 LR = 3e-4              # canonical GPT-2 small value; you own this knob — tune later
-MAX_ITERS = 5000       # placeholder for the ARMED path; sweep target lives in your spec
-EVAL_INTERVAL = 200
-EVAL_ITERS = 200
+MAX_ITERS = 12500       # placeholder for the ARMED path; sweep target lives in your spec
+EVAL_INTERVAL = 250
+EVAL_ITERS = 100
 SMOKE_ITERS = 10       # entrypoint only — never a real run
 
 
