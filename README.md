@@ -61,6 +61,18 @@ wrong. Step 0's `get_batch` hits data still warm in the OS page cache from the
 warmup loop, so it undercounts the loader by ~8×. Only the N-step loop exposes
 it — the numbers above are the honest ones.
 
+## Convergence Rule
+
+Training is considered "Done" when loss(val) improves by under **0.5%** in a row **4** times.
+The measured noise floor(+- 0.2%) starts at ~9,750 steps and onwards until run was ended at
+12,500 steps. I chose 0.5% because it gave a little headroom over the noise floor(+- 0.2%)
+and gave val more time to drop (0.6% at 10,250 steps). I added "in a row **4** times" to
+ensure there were no outliers that could have ended the run early before training could
+converge(step 3250 val dipped to 0.5% that recovered to 0.8%). This data came from a model
+with **30M** params, with this OpenWebText data, ran on 2026-07-26, 12,500 steps. In this
+run, the loss(val) has not yet converged, val was still improving 0.6% at step 10,250 and
+ended at 4.458 and still descending. I measured a noise floor, not the convergence
+
 ## Hardware / data
 
 - NVIDIA RTX PRO 6000 Blackwell **Workstation Edition** (96 GB, GB202, 600W;
