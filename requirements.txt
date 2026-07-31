@@ -1,3 +1,8 @@
+# Developed against torch 2.11.0+cu128 on an RTX PRO 6000 Blackwell (sm_120).
+# Plain `pip install torch` installs the default wheel for the platform, which
+# may not carry sm_120 kernels. For a specific CUDA build:
+# https://pytorch.org/get-started/locally/
+
 torch>=2.6
 numpy>=2.0
 tiktoken>=0.9
