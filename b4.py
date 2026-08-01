@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 from b3 import get_batch, DEVICE, model, train_loop, optimizer, EVAL_INTERVAL
 
-loop = 15
+loop = 105
 warmup = 5
 accum = 1
 param_count = 0
