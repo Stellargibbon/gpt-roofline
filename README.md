@@ -86,13 +86,34 @@ Earlier, I assumed that the data (4 KB) is already loaded into RAM for `b4.py`
 and not `b1.py` without actually verifying my assumption. To test it, I'm going
 to look for how many times each run had to go to disk with
 `/usr/bin/time -v python b1.py` and `/usr/bin/time -v python b4.py`. A MAJOR
-fault in the page cache means the page wasn't there and it went to disk; a MINOR
+fault in the page cache means the page wasn't there and it went to disk; A MINOR
 fault means the page was already in RAM.
 
 |             what you would see             |             what it means            |
 |---|---|
 | b1 thousands of MAJOR faults, b4 near zero |   the page cache explains the 25x    |
 |             both runs similar              | it does not, and something else does |
+
+**RESULTS:**
+Instead of measuring `b1.py` and `b4.py`, I measured `b1.py`'s loader with a cold pass (ran command `sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'`) then immediately a warm pass afterwards.
+
+TEST RAN ON 8/3/2026 21:12 **100 COLD and 100 WARM passes**
+
+Cache at start: **93828 kB**
+
+===== COLD PASS =====
+first batch:   586.73 ms
+mean:   **130.67 ms**   median:  87.28   p90: 299.59   max:   586.73
+majflt: **+2451**   minflt: **+34478**
+
+===== WARM PASS =====
+first batch:   172.31 ms
+mean:    **15.92 ms**   median:  12.00   p90:  27.72   max:   172.31
+majflt: **+483**   minflt: **+36413**
+
+Cache at end: **18235524 kB**
+
+The cold pass produced **2451** major faults, roughly 5x the amount in the warm pass, this strongly supports the page cache is behind the 25x difference. In the cold pass, the slice time of the mean (**~2.0 ms**) and median (**~1.4 ms**) straddles the slice time I measured in June (**1.652 ms**). Both of the passes use unseeded `randint` so the passes hit different random slices than each other. Warm being faster is NOT 'revisiting the same pages'. The passes only needed ~3 MB of data (6400 * 512 bytes) each, but cache grew from **~94 MB** at the beginning to **~18.2 GB** at the end.
 
 ## Convergence Rule
 
@@ -107,6 +128,31 @@ model with **30M** params, with OpenWebText data, ran on 2026-07-26, 12,500
 steps. In this run, the loss(val) has not yet converged, val was still improving
 0.6% at step 10,250 and ended at 4.458 and still descending. I measured a noise
 floor, not the convergence.
+
+## Run #1 launched 8/3/2026 at 14:58 -  18:57
+
+`cd ~/workspace/gpt-roofline && rm -f logs/curve.tsv logs/*.pt && setsid nohup ./.venv/bin/python -u b3.py > logs/run.log 2>&1 &`
+
+| | |
+|---|---|
+| launched | 2026-08-03 14:58 |
+| finished | 18:57 · 3h 59m |
+| steps | 100,000 |
+| tokens | **1.638B** · 54.5 tok/param · **16.6% of corpus** |
+| evals | 400 · every 250 steps · 100 iters |
+| best val | **4.203 @ 90,250** |
+| final val | 4.2247 @ 100,000 |
+| 7/26 run | 4.458 @ 12,500 |
+| rule fired | **step 7,500** |
+| rule on 7/26 curve | ~11,250 · 33% spread |
+| val @ 7,500 | ~4.623 |
+| overshoot | −0.420 · −9.1% rel · 92.5% of budget |
+| step time | 85.30 ms burst · +5-8% sustained @ 84-88 C |
+| wall | 3h 59m actual vs ~3.0h planned |
+| checkpoints | rolling best + 3 rotating full states / 5k |
+
+This was the first full budget run and its purpose is to see where the rule would have fired, a benchmark for sustained load on the box, and used as reference for future runs. The best weights were saved using a rolling best that saved the weights each time val improves and 3 rotating full states that can be used to resume in case of a crash. The final val **4.2247** is worse than the rolling best **4.203** at **step 90,250**. This time, the convergence rule would have fired at step 7,500 vs 11,250 last time on 7/26. The rule isn't very stable and fires in a noise band rather than a point. This run is consistent with power-law diminishing returns, **13.3x** more compute gave me **9.1%** more quality. (4.623 − 4.203) / 4.623 = ~9.1%. One honest caveat is a static learning rate (`LR = 3e-4`) that flattens the tail. The convergence rule will temporarily not govern future runs  because it's still firing in a noise floor. I am going to keep testing and reworking it.
+
 
 ## Hardware / data
 

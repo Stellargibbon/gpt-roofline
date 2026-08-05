@@ -10,6 +10,8 @@ meta.json
 # HuggingFace dataset cache (if it lands locally)
 .cache/
 
+logs/
+
 # in-progress phase bricks - stay local until a brick is FULLY finished.
 # Workflow per brick:
 #   1. write the brick (local, ignored - invisible to git, can't be added by accident)
