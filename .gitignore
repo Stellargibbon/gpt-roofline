@@ -20,13 +20,10 @@ logs/
 # Tracked files beat the ignore rule, so once pushed, later edits land normally.
 b[0-9]*.py
 
-# personal answer keys / learning aids - kept local, not for the public repo
 *_reference.py
-# local probes + scratch rig - not for the public repo
 probes/
 scratch.py
 
-# personal planning doc - private by his call 7/26 (was public, purged from
 # history via filter-repo; keep it out of git going forward)
 PROJECT_SPEC.md
 *.bak-*
