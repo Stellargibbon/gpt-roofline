@@ -140,18 +140,21 @@ floor, not the convergence.
 | steps | 100,000 |
 | tokens | **1.638B** · 54.5 tok/param · **16.6% of corpus** |
 | evals | 400 · every 250 steps · 100 iters |
-| best val | **4.203 @ 90,250** |
+| best val | **4.203 @ 90,250** (see correction) |
 | final val | 4.2247 @ 100,000 |
 | 7/26 run | 4.458 @ 12,500 |
 | rule fired | **step 7,500** |
 | rule on 7/26 curve | ~11,250 · 33% spread |
 | val @ 7,500 | ~4.623 |
-| overshoot | −0.420 · −9.1% rel · 92.5% of budget |
+| overshoot | −0.420 · −9.1% (correction 0.4003 -8.7%) rel · 92.5% of budget |
 | step time | 85.30 ms burst · +5-8% sustained @ 84-88 C |
 | wall | 3h 59m actual vs ~3.0h planned |
 | checkpoints | rolling best + 3 rotating full states / 5k |
 
-This was the first full budget run and its purpose is to see where the rule would have fired, a benchmark for sustained load on the box, and used as reference for future runs. The best weights were saved using a rolling best that saved the weights each time val improves and 3 rotating full states that can be used to resume in case of a crash. The final val **4.2247** is worse than the rolling best **4.203** at **step 90,250**. This time, the convergence rule would have fired at step 7,500 vs 11,250 last time on 7/26. The rule isn't very stable and fires in a noise band rather than a point. This run is consistent with power-law diminishing returns, **13.3x** more compute gave me **9.1%** more quality. (4.623 − 4.203) / 4.623 = ~9.1%. One honest caveat is a static learning rate (`LR = 3e-4`) that flattens the tail. The convergence rule will temporarily not govern future runs  because it's still firing in a noise floor. I am going to keep testing and reworking it.
+This was the first full budget run and its purpose is to see where the rule would have fired, a benchmark for sustained load on the box, and used as reference for future runs. The best weights were saved using a rolling best that saved the weights each time val improves and 3 rotating full states that can be used to resume in case of a crash. The final val **4.2247** is worse than the rolling best **4.203** at **step 90,250**. This time, the convergence rule would have fired at step 7,500 vs 11,250 last time on 7/26. The rule isn't very stable and fires in a noise band rather than a point. This run is consistent with power-law diminishing returns, **13.3x** more compute gave me **9.1% (correction 8.7%)** more quality. (4.623 − 4.203) / 4.623 = ~9.1% (correction: (4.623 - 4.2227) / 4.623 = ~8.7%). One honest caveat is a static learning rate (`LR = 3e-4`) that flattens the tail. The convergence rule will temporarily not govern future runs  because it's still firing in a noise floor. I am going to keep testing and reworking it.
+
+### Correction (2026-08-15): best val 4.203 -> 4.2227
+After running 10 fresh draws at the same checkpoint, the mean returned at 4.2227 rather than the logged 4.203. Each eval is the mean of 100 random val batches (sd 0.0064), the 'best' is a running minimum of that noisy series. At the tail of run #1, the line is flat, which means each eval essentially gets the same loss + noise, a random draw. The running minimum over 100 evals picks the best noise, not a better model. Future runs will have eval set and seed frozen, the frozen set reads +0.005 (+0.8 sd) over fresh draws. The measurements for this correction live in `logs/bias_check_20260807_0237.txt` and predictions for these types of effects are at `PREDICTIONS_2026-08-13.md`, written before run #3. 
 
 
 ## Hardware / data
