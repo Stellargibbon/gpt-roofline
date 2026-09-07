@@ -24,7 +24,7 @@ moves the loss?"* This one answers *"how fast and cheaply did I get there?"*
   MFU, peak VRAM, coarse step-time split, and an N-step measurement loop with
   warmup discard.
 
-### Instrumented numbers (2026-07-26)
+# Instrumented numbers (2026-07-26)
 
 30M-param GPT, fp32 (`allow_tf32=False`), B*T = 16,384 tokens/step, n=105 steps
 (5 warmup discarded), RTX PRO 6000 Blackwell Workstation Edition:
@@ -115,7 +115,7 @@ Cache at end: **18235524 kB**
 
 The cold pass produced **2451** major faults, roughly 5x the amount in the warm pass, this strongly supports the page cache is behind the 25x difference. In the cold pass, the slice time of the mean (**~2.0 ms**) and median (**~1.4 ms**) straddles the slice time I measured in June (**1.652 ms**). Both of the passes use unseeded `randint` so the passes hit different random slices than each other. Warm being faster is NOT 'revisiting the same pages'. The passes only needed ~3 MB of data (6400 * 512 bytes) each, but cache grew from **~94 MB** at the beginning to **~18.2 GB** at the end.
 
-## Convergence Rule
+# Convergence Rule
 
 Training is considered "Done" when loss(val) improves by under **0.5%** in a row
 **4** times. The measured noise floor (+- 0.2%) starts at ~9,750 steps and
@@ -129,7 +129,7 @@ steps. In this run, the loss(val) has not yet converged, val was still improving
 0.6% at step 10,250 and ended at 4.458 and still descending. I measured a noise
 floor, not the convergence.
 
-## Run #1 launched 8/3/2026 at 14:58 -  18:57
+# Run #1 launched 8/3/2026 at 14:58 -  18:57
 
 `cd ~/workspace/gpt-roofline && rm -f logs/curve.tsv logs/*.pt && setsid nohup ./.venv/bin/python -u b3.py > logs/run.log 2>&1 &`
 
@@ -153,10 +153,54 @@ floor, not the convergence.
 
 This was the first full budget run and its purpose is to see where the rule would have fired, a benchmark for sustained load on the box, and used as reference for future runs. The best weights were saved using a rolling best that saved the weights each time val improves and 3 rotating full states that can be used to resume in case of a crash. The final val **4.2247** is worse than the rolling best **4.203** at **step 90,250**. This time, the convergence rule would have fired at step 7,500 vs 11,250 last time on 7/26. The rule isn't very stable and fires in a noise band rather than a point. This run is consistent with power-law diminishing returns, **13.3x** more compute gave me **9.1% (correction 8.7%)** more quality. (4.623 − 4.203) / 4.623 = ~9.1% (correction: (4.623 - 4.2227) / 4.623 = ~8.7%). One honest caveat is a static learning rate (`LR = 3e-4`) that flattens the tail. The convergence rule will temporarily not govern future runs  because it's still firing in a noise floor. I am going to keep testing and reworking it.
 
-### Correction (2026-08-15): best val 4.203 -> 4.2227
+# Correction (2026-08-15): best val 4.203 -> 4.2227
 After running 10 fresh draws at the same checkpoint, the mean returned at 4.2227 rather than the logged 4.203. Each eval is the mean of 100 random val batches (sd 0.0064), the 'best' is a running minimum of that noisy series. At the tail of run #1, the line is flat, which means each eval essentially gets the same loss + noise, a random draw. The running minimum over 100 evals picks the best noise, not a better model. Future runs will have eval set and seed frozen, the frozen set reads +0.005 (+0.8 sd) over fresh draws. The measurements for this correction live in `logs/bias_check_20260807_0237.txt` and predictions for these types of effects are at `PREDICTIONS_2026-08-13.md`, written before run #3. 
 
+# Runs #2-3 (4 seeds, fixed eval set)
 
+What changed: 
+LR schedule: warmup (300 steps) then cosine decay to `MIN_LR = 3e-5`. Run #1 was flat 3e-4 the whole way. 
+Eval method: a frozen 100-batch val set seeded with `EVAL_SEED`=1234, drawn once before training and reused every eval. Plus a separate RUN_SEED for training randomness. Run #1 re-drew random val batches every eval.
+
+ |                        | run2A         | run2B         | run3A        | run3B         |
+ |------------------------|---------------|---------------|--------------|---------------|
+ | seed                   | 2             | 1             | 3            | 4             |
+ | box                    | spark1 (.192) | spark2 (.250) | spark3 (.27) | spark4 (.154) |
+ | steps                  | 100,000       | 100,000       | 100,000      | 100,000       |
+ | best val               | 4.1158        | 4.1205        | 4.1119       | 4.1166        |
+ | step at best           | 99,500        | 99,750        | 99,750       | 99,750        |
+ | tail mean (last 100)   | 4.1304        | 4.1354        | 4.1261       | 4.1312        |
+ | between-seed sd (tail) | 0.0038        |               |              |               |
+ | between-seed sd (ckpt) | 0.0035        |               |              |               |
+
+# Prediction grading
+
+**Predictions sealed at PREDICTIONS_2026-08-13.md before runs 2-3, untouched since.**
+### Best-val optimism (random-batch eval)
+- predicted: gap in [0.015, 0.025]
+- measured: only run1 used random-batch eval, on a different GPU (RTX PRO 6000). No comparable fixed-eval run on the same silicon to grade against.
+- verdict: UNGRADED
+
+### Fixed-eval-set gap
+- predicted: |gap| < 0.0115
+- run2A: gap -0.0067, PASS
+- run2B: gap -0.0062, PASS
+- run3A: gap -0.0054, PASS
+- run3B: gap -0.0077, PASS
+- verdict: All fixed eval runs' selection bias was under 0.0115, lowering fresh draw selection bias from 0.0197 to under 0.008
+
+### Between-seed spread
+- predicted: sd in [0.002, 0.010]
+- measured: sd 0.0038 (tail means), 0.0035 (checkpoint vals)
+- verdict: almost no sd between seeds so runs can be cleanly measured without much worry for noise
+
+### Minimum detectable effect
+- the floor: 0.013 (2 * sd * sqrt(2/n), sd=0.0047, n=1)
+- the gaps (0.005-0.008) and seed spread (0.0038) both sit below it
+- what that means: Essentially all 4 runs are at the same level
+
+### What `eval.py` does
+- Pulls each run's (2A-B, 3A-B) 'best' snapshot and returns 10 fresh draws of the mean of 100 unseeded `get_batch("val")` per run.
 ## Hardware / data
 
 - NVIDIA RTX PRO 6000 Blackwell **Workstation Edition** (96 GB, GB202, 600W; 125
